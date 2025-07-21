@@ -1,0 +1,33 @@
+# Docker image build for hub.docker.com
+name: Docker images
+
+# Run this Build for all pushes to 'master' or tagged releases.
+# Also run for PRs to ensure PR doesn't break Docker build process
+# NOTE: uses "reusable-docker-build.yml" to actually build each of the Docker images.
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: read  #  to fetch code (actions/checkout)
+
+jobs:
+  ###################################################################
+  # Build/Push the 'kstatelibraries/suma' image.
+  ###################################################################
+  suma:
+    # Ensure this job never runs on forked repos. It's only executed for 'kstatelibraries/Suma'
+    if: github.repository == 'kstatelibraries/Suma'
+    uses: kstatelibraries/kstatelibraries/.github/workflows/reusable-docker-build.yml@main
+    with:
+      build_id: suma
+      image_name: kstatelibraries/suma
+      dockerfile_path: ./Dockerfile
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_ACCESS_TOKEN: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
