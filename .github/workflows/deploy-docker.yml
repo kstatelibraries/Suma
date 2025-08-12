@@ -22,7 +22,7 @@ jobs:
   suma:
     # Ensure this job never runs on forked repos. It's only executed for 'kstatelibraries/Suma'
     if: github.repository == 'kstatelibraries/Suma'
-    uses: kstatelibraries/kstatelibraries/.github/workflows/reusable-docker-build.yml@main
+    uses: kstatelibraries/.github/.github/workflows/reusable-docker-build.yml@main
     with:
       build_id: suma
       image_name: kstatelibraries/suma
