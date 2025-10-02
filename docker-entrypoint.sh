@@ -48,7 +48,7 @@ if [ ! -f "$CONFIG_PATH" ]; then
 SUMA_SERVER_PATH: $SUMA_DIR/service
 SUMA_CONTROLLER_PATH: $SUMA_DIR/service/controllers
 SUMA_BASE_URL: /sumaserver
-SUMA_DEBUG: true
+SUMA_DEBUG: ${SUMA_DEBUG}
 EOC
 fi
 
