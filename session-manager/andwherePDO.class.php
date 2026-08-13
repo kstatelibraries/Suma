@@ -30,12 +30,15 @@ class AndWherePDO {
      * @param string $operator MySQL operator such as 'LIKE', '=', '!=' 
        describing the relationship between field and value
      * @param string $type Type of value: int, str, bool, null
+     * @param string $placeholder_name Optional placeholder name, used when $field
+       is an SQL expression rather than a bare column name and so cannot be used as
+       a placeholder itself. Defaults to $field.
      * @access public
      */
 
-    public function AddCondition ($field,$value,$operator='=',$type='str') {
-        $placeholder = ':' . $field;
-        
+    public function AddCondition ($field,$value,$operator='=',$type='str',$placeholder_name=null) {
+        $placeholder = ':' . ($placeholder_name === null ? $field : $placeholder_name);
+
         switch ($type) {
         case 'str': 
             $param_type = PDO::PARAM_STR;

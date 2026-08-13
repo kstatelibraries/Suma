@@ -3,6 +3,11 @@
 // Config
 require_once "lib/spyc/Spyc.php";
 
+// Suma stores every timestamp in UTC. Fix the server-side timezone here so
+// date()/strtotime() never depend on php.ini or the host clock; local-time
+// conversion is applied at display time only.
+date_default_timezone_set('UTC');
+
 // Check that config exists
 if (!is_readable('config/config.yaml'))
 {

@@ -2,7 +2,32 @@
 function ConnectPDO () {
     $db = new PDO('mysql:host='.MYSQL_HOST.';port='.MYSQL_PORT.';dbname='.MYSQL_DATABASE.';charset=utf8', MYSQL_USER, MYSQL_PASSWORD);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Timestamps are stored in UTC. TIMESTAMP columns are converted using the
+    // session time_zone, so pin it instead of inheriting the database host's.
+    $db->exec("SET time_zone = '+00:00'");
+
     return $db;
+}
+
+/**
+ * Wraps a stored (UTC) timestamp column in a conversion to the display timezone.
+ *
+ * Session times are stored in UTC but staff read and adjust them in local time,
+ * so every displayed or filtered timestamp is converted here. Returns the column
+ * unchanged when the display timezone is UTC.
+ *
+ * @param string $col Column reference, e.g. '`session`.`start`'
+ * @return string SQL expression yielding the column in the display timezone
+ */
+function LocalExpr ($col) {
+    $tz = defined('SUMA_DISPLAY_TIMEZONE') ? SUMA_DISPLAY_TIMEZONE : 'UTC';
+
+    if ($tz === 'UTC') {
+        return $col;
+    }
+
+    return "CONVERT_TZ($col, 'UTC', '".$tz."')";
 }
 function HandleExceptionPDO($e) {
     print '<div class="alert">'.PHP_EOL;
@@ -22,7 +47,16 @@ function ShowEntries ($init, $offset=0, $entries_per_page=60, $and_where="", $ho
 
     try {
         $db = ConnectPDO();
-        $q = 'SELECT `session`.*,sum(`number`) as Counts FROM `session`,`count` WHERE session.fk_initiative = :init AND session.id = count.fk_session '.$and_where_string.' GROUP BY fk_session ORDER BY `session`.`start` DESC LIMIT :offset, :entries_per_page';
+        // Columns are listed explicitly (rather than `session`.*) so that start and
+        // end can be emitted in the display timezone.
+        $q = 'SELECT `session`.`id`, '
+           . LocalExpr('`session`.`start`').' AS `start`, '
+           . LocalExpr('`session`.`end`').' AS `end`, '
+           . '`session`.`fk_initiative`, `session`.`fk_transaction`, `session`.`deleted`, '
+           . 'sum(`number`) as Counts FROM `session`,`count` '
+           . 'WHERE session.fk_initiative = :init AND session.id = count.fk_session '
+           . $and_where_string
+           . ' GROUP BY fk_session ORDER BY `session`.`start` DESC LIMIT :offset, :entries_per_page';
         $stmt = $db->prepare($q);
         $stmt->bindParam(':init', $init, PDO::PARAM_INT);
         if (is_object($and_where))  {
@@ -178,7 +212,10 @@ function DeleteUndelete($action, $id) {
 function ShowMultiHours($init) {
     try { 
         $db = ConnectPDO();
-        $q = "SELECT CONCAT( DATE(`start`) , ' ', HOUR(`start`) ) AS DateHour, count( * ) AS HourCount FROM `session` WHERE fk_initiative = '".$init."' and deleted = 0 GROUP BY HOUR(`start`) , DATE(`start`) HAVING HourCount > 1 ORDER BY DateHour DESC";
+        // Sessions are grouped by local date and hour, since that is the boundary
+        // staff reason about when looking for duplicate counts in an hour.
+        $local = LocalExpr('`start`');
+        $q = "SELECT CONCAT( DATE($local) , ' ', HOUR($local) ) AS DateHour, count( * ) AS HourCount FROM `session` WHERE fk_initiative = '".$init."' and deleted = 0 GROUP BY HOUR($local) , DATE($local) HAVING HourCount > 1 ORDER BY DateHour DESC";
         $stmt = $db->prepare($q);
         $stmt->execute();
         

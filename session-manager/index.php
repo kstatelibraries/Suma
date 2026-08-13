@@ -114,8 +114,11 @@ elseif (isset($_REQUEST['action']) && $_REQUEST['action'] == "undelete_session")
 
 if (isset($_REQUEST['date_search'])) {
     //    $and_where = "AND `start` LIKE '".$_REQUEST['date_search']."%'";
+    // The date entered is a local calendar date, so match against the local-time
+    // value rather than the UTC value stored in the column. WHERE cannot reference
+    // the SELECT alias, so the conversion is repeated here.
     $and_where = new AndWherePDO();
-    $and_where->AddCondition('start',$_REQUEST['date_search'].'%','LIKE');
+    $and_where->AddCondition(LocalExpr('`session`.`start`'),$_REQUEST['date_search'].'%','LIKE','str','start_date');
 }
 }
 

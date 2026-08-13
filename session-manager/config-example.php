@@ -8,6 +8,15 @@ define ("MYSQL_DATABASE", ""); //enter value as second argument
 define ("MYSQL_USER", "");     //enter value as second argument
 define ("MYSQL_PASSWORD", ""); //enter value as second argument
 
+/*
+  Session times are stored in UTC. They are converted to this timezone for
+  display, and date searches are matched against it. Use an IANA identifier
+  (e.g. "America/Chicago"), or "UTC" to disable conversion.
+
+  Requires MySQL's named timezone tables to be loaded; see README.md.
+*/
+define ("SUMA_DISPLAY_TIMEZONE", "UTC");
+
 
 /*
 Select a JQueryUI Theme. Any of the followint themes may be used:

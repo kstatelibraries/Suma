@@ -14,6 +14,7 @@ class QueryModel
     private $_initActGroups = array();
     private $_initId;
     private $_initMetadata = array();
+    private $_displayTz;
     private $_formats = array('alc' => ' caj.fk_activity ASC, c.fk_location ASC, c.occurrence ASC, c.id ASC ',
                               'lac' => ' c.fk_location ASC, caj.fk_activity ASC, c.occurrence ASC, c.id ASC ',
                               'lca' => ' c.fk_location ASC, c.occurrence ASC, c.id ASC, caj.fk_activity ASC ',
@@ -25,6 +26,7 @@ class QueryModel
     public function __construct($initId)
     {
         $this->_db = Globals::getDBConn();
+        $this->_displayTz = Globals::getDisplayTimezone();
         $this->_initId = $initId;
         $select = $this->_db->select()
             ->from('initiative', array('id', 'title', 'fk_root_location as rootLocation', 'description'))
@@ -171,6 +173,48 @@ class QueryModel
         return $this->_initActGroups;
     }
 
+    /**
+     * Wraps a stored (UTC) timestamp column in a conversion to the display timezone.
+     *
+     * Date and time filters supplied by reports are expressed in local time, and
+     * the timestamps returned to the client are bucketed into local days and hours.
+     * Both must therefore be evaluated against local time rather than the UTC value
+     * held in the column. Returns the column untouched when the display timezone is
+     * UTC, so the generated SQL stays unchanged for UTC deployments.
+     *
+     * Note: this relies on MySQL's named timezone tables being loaded (see the
+     * load-timezones step in docker-compose.yml). A named zone is used rather than a
+     * fixed offset so that daylight saving transitions are handled correctly.
+     *
+     * @param string $col A timestamp column reference, e.g. 's.start'
+     * @return string SQL expression yielding the column in the display timezone
+     */
+    private function _local($col)
+    {
+        if ($this->_displayTz === 'UTC')
+        {
+            return $col;
+        }
+
+        return 'CONVERT_TZ('.$col.', \'UTC\', \''.$this->_displayTz.'\')';
+    }
+
+    /**
+     * Returns the current time in the display timezone, as a MySQL datetime string.
+     *
+     * Used as the implicit upper bound when a report supplies a start date but no
+     * end date. The bound has to be "today" as the reader experiences it, not UTC
+     * today, or the final day of an open-ended range is clipped or over-extended.
+     *
+     * @return string Current local time formatted as 'Y-m-d H:i:s'
+     */
+    private function _nowLocal()
+    {
+        $now = new DateTime('now', new DateTimeZone($this->_displayTz));
+
+        return $now->format('Y-m-d H:i:s');
+    }
+
     public function bySessions($params)
     {
         // SQL to pull valid sessions
@@ -187,19 +231,19 @@ class QueryModel
         {
             if (isset($params['eDate']))
             {
-                $this->_sessSql .= ' (DATE(s.start) BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$params['eDate'].'\') '
-                    . ' OR DATE(s.end) BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$params['eDate'].'\')) ';
+                $this->_sessSql .= ' (DATE('.$this->_local('s.start').') BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$params['eDate'].'\') '
+                    . ' OR DATE('.$this->_local('s.end').') BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$params['eDate'].'\')) ';
             }
             else
             {
-                $now = new Zend_Date();
-                $this->_sessSql .= ' (DATE(s.start) BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$now->get(Zend_Date::ISO_8601).'\') '
-                    . ' OR DATE(s.end) BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$now->get(Zend_Date::ISO_8601).'\')) ';
+                $now = $this->_nowLocal();
+                $this->_sessSql .= ' (DATE('.$this->_local('s.start').') BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$now.'\') '
+                    . ' OR DATE('.$this->_local('s.end').') BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$now.'\')) ';
             }
         }
         else if (isset($params['eDate']))
         {
-            $this->_sessSql .= ' (DATE(s.start) <= DATE(\''.$params['eDate'].'\')) ';
+            $this->_sessSql .= ' (DATE('.$this->_local('s.start').') <= DATE(\''.$params['eDate'].'\')) ';
         }
 
         // Test if AND clause is needed
@@ -228,43 +272,43 @@ class QueryModel
                     // Assume input of 22:00-02:00
                     // Match sessions with START time that is >= to start time input OR <= end time input
                     // Matches [22:30-23:30, 22:30-01:30, 22:30-03:00] OR [00:30-01:30, 00:30-3:00]
-                    $this->_sessSql .= ' ((TIME(s.start) >= TIME(\''.$start.'\') OR TIME(s.start) <= TIME(\''.$end.'\')) ';
+                    $this->_sessSql .= ' ((TIME('.$this->_local('s.start').') >= TIME(\''.$start.'\') OR TIME('.$this->_local('s.start').') <= TIME(\''.$end.'\')) ';
                     // Match sessions with END time >= start time input or <= end time input
                     // Matches [20:00-23:30] OR [20:00-01:30]
-                    $this->_sessSql .= ' OR (TIME(s.end) >= TIME(\''.$start.'\') OR TIME(s.end) <= TIME(\''.$end.'\')) ';
+                    $this->_sessSql .= ' OR (TIME('.$this->_local('s.end').') >= TIME(\''.$start.'\') OR TIME('.$this->_local('s.end').') <= TIME(\''.$end.'\')) ';
                     // Match sessions with START time < start time input AND END time > end time input, ONLY when the session spans different days
                     // Matches 20:00-03:00
                     // NOTE: Sessions that are longer than 24 hours are accounted for later in this script
-                    $this->_sessSql .= ' OR (DATE(s.start) != DATE(s.end) AND TIME(s.start) <= TIME(\''.$start.'\') AND TIME(s.end) >= TIME(\''.$end.'\')) ';
+                    $this->_sessSql .= ' OR (DATE('.$this->_local('s.start').') != DATE('.$this->_local('s.end').') AND TIME('.$this->_local('s.start').') <= TIME(\''.$start.'\') AND TIME('.$this->_local('s.end').') >= TIME(\''.$end.'\')) ';
                 }
                 else
                 {
-                    $this->_sessSql .= ' ((TIME(s.start) BETWEEN TIME(\''.$start.'\') AND TIME(\''.$end.'\') ';
-                    $this->_sessSql .= ' OR TIME(s.end) BETWEEN TIME(\''.$start.'\') AND TIME(\''.$end.'\')) ';
-                    $this->_sessSql .= ' OR (TIME(s.start) <= TIME(\''.$start.'\') AND TIME(s.end) >= TIME(\''.$end.'\')) ';
-                    $this->_sessSql .= ' OR (DATE(s.start) != DATE(s.end) AND (TIME(s.start) <= TIME(\''.$start.'\') OR TIME(s.end) >= TIME(\''.$end.'\'))) ';
+                    $this->_sessSql .= ' ((TIME('.$this->_local('s.start').') BETWEEN TIME(\''.$start.'\') AND TIME(\''.$end.'\') ';
+                    $this->_sessSql .= ' OR TIME('.$this->_local('s.end').') BETWEEN TIME(\''.$start.'\') AND TIME(\''.$end.'\')) ';
+                    $this->_sessSql .= ' OR (TIME('.$this->_local('s.start').') <= TIME(\''.$start.'\') AND TIME('.$this->_local('s.end').') >= TIME(\''.$end.'\')) ';
+                    $this->_sessSql .= ' OR (DATE('.$this->_local('s.start').') != DATE('.$this->_local('s.end').') AND (TIME('.$this->_local('s.start').') <= TIME(\''.$start.'\') OR TIME('.$this->_local('s.end').') >= TIME(\''.$end.'\'))) ';
                 }
 
             }
             else if (isset($params['sTimeH']))
             {
                 $start = $params['sTimeH'].':'.$params['sTimeM'].':00';
-                $this->_sessSql .= ' (TIME(s.start) BETWEEN TIME(\''.$start.'\') AND TIME(\'23:59:59\') ';
-                $this->_sessSql .= ' OR TIME(s.end) BETWEEN TIME(\''.$start.'\') AND TIME(\'23:59:59\') ';
-                $this->_sessSql .= ' OR (DATE(s.start) != DATE(s.end) AND (TIME(s.start) <= TIME(\''.$start.'\'))) ';
+                $this->_sessSql .= ' (TIME('.$this->_local('s.start').') BETWEEN TIME(\''.$start.'\') AND TIME(\'23:59:59\') ';
+                $this->_sessSql .= ' OR TIME('.$this->_local('s.end').') BETWEEN TIME(\''.$start.'\') AND TIME(\'23:59:59\') ';
+                $this->_sessSql .= ' OR (DATE('.$this->_local('s.start').') != DATE('.$this->_local('s.end').') AND (TIME('.$this->_local('s.start').') <= TIME(\''.$start.'\'))) ';
             }
             else if (isset($params['eTimeH']))
             {
                 $end = $params['eTimeH'].':'.$params['eTimeM'].':59';
-                $this->_sessSql .= ' (TIME(s.start) <= TIME(\''.$end.'\') ';
+                $this->_sessSql .= ' (TIME('.$this->_local('s.start').') <= TIME(\''.$end.'\') ';
 
                 if (isset($params['eDate']))
                 {
-                    $this->_sessSql .= ' OR ((TIME(s.end) <= TIME(\''.$end.'\') OR (DATE(s.start) != DATE(s.end))) AND DATE(s.end) <= DATE(\''.$params['eDate'].'\')) ';
+                    $this->_sessSql .= ' OR ((TIME('.$this->_local('s.end').') <= TIME(\''.$end.'\') OR (DATE('.$this->_local('s.start').') != DATE('.$this->_local('s.end').'))) AND DATE('.$this->_local('s.end').') <= DATE(\''.$params['eDate'].'\')) ';
                 }
                 else
                 {
-                    $this->_sessSql .= ' OR TIME(s.end) <= TIME(\''.$end.'\') OR DATE(s.start) != DATE(s.end) ';
+                    $this->_sessSql .= ' OR TIME('.$this->_local('s.end').') <= TIME(\''.$end.'\') OR DATE('.$this->_local('s.start').') != DATE('.$this->_local('s.end').') ';
                 }
             }
 
@@ -276,7 +320,7 @@ class QueryModel
         // If a session encompasses the requested range in its entirety
         if (isset($params['sDate']) && isset($params['eDate']))
         {
-            $this->_sessSql .= ' OR (DATE(s.start) < DATE(\''.$params['sDate'].'\') AND DATE(s.end) > DATE(\''.$params['eDate'].'\')) ';
+            $this->_sessSql .= ' OR (DATE('.$this->_local('s.start').') < DATE(\''.$params['sDate'].'\') AND DATE('.$this->_local('s.end').') > DATE(\''.$params['eDate'].'\')) ';
         }
 
         $this->_sessSql .= ' ORDER BY s.start ASC, s.id ASC ';
@@ -314,7 +358,9 @@ class QueryModel
             }
 
             // SQL to pull counts of returned session IDs
-            $this->_countsSql = 'SELECT s.id as sid, s.start, s.end, c.id as cid, c.number as cnum, caj.fk_activity as act, c.fk_location as loc, c.occurrence as oc, s.fk_transaction as transId, t.start as transStart, t.end as transEnd
+            // Timestamps are emitted in the display timezone so that clients can bucket
+            // them into local days and hours without repeating the conversion.
+            $this->_countsSql = 'SELECT s.id as sid, '.$this->_local('s.start').' as start, '.$this->_local('s.end').' as end, c.id as cid, c.number as cnum, caj.fk_activity as act, c.fk_location as loc, '.$this->_local('c.occurrence').' as oc, s.fk_transaction as transId, '.$this->_local('t.start').' as transStart, '.$this->_local('t.end').' as transEnd
                     FROM (session s LEFT JOIN transaction t ON s.fk_transaction = t.id), count c
                     LEFT JOIN count_activity_join caj ON c.id = caj.fk_count
                     WHERE s.deleted = 0 AND c.fk_session = s.id AND s.fk_initiative = '.$this->_initId.' AND '
@@ -336,7 +382,7 @@ class QueryModel
     public function byCounts($params)
     {
         $countSelect = 'SELECT COUNT(c.id) ';
-        $dataSelect = 'SELECT s.id as sid, s.start, s.end, c.id as cid, c.number as cnum, caj.fk_activity as act, c.fk_location as loc, c.occurrence as oc ';
+        $dataSelect = 'SELECT s.id as sid, '.$this->_local('s.start').' as start, '.$this->_local('s.end').' as end, c.id as cid, c.number as cnum, caj.fk_activity as act, c.fk_location as loc, '.$this->_local('c.occurrence').' as oc ';
 
         $this->_countsSql = ' FROM session s,
                 count c LEFT JOIN count_activity_join caj ON c.id = caj.fk_count
@@ -347,17 +393,17 @@ class QueryModel
         {
             if (isset($params['eDate']))
             {
-                $this->_countsSql .= ' AND (DATE(c.occurrence) BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$params['eDate'].'\')) ';
+                $this->_countsSql .= ' AND (DATE('.$this->_local('c.occurrence').') BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$params['eDate'].'\')) ';
             }
             else
             {
-                $now = new Zend_Date();
-                $this->_countsSql .= ' AND (DATE(c.occurrence) BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$now->get(Zend_Date::ISO_8601).'\')) ';
+                $now = $this->_nowLocal();
+                $this->_countsSql .= ' AND (DATE('.$this->_local('c.occurrence').') BETWEEN DATE(\''.$params['sDate'].'\') AND DATE(\''.$now.'\')) ';
             }
         }
         else if (isset($params['eDate']))
         {
-            $this->_countsSql .= ' AND (DATE(c.occurrence) <= DATE(\''.$params['eDate'].'\')) ';
+            $this->_countsSql .= ' AND (DATE('.$this->_local('c.occurrence').') <= DATE(\''.$params['eDate'].'\')) ';
         }
 
         // Time filtration
@@ -375,22 +421,22 @@ class QueryModel
 
                 if ($sTime->isLater($eTime))
                 {
-                    $this->_countsSql .= ' AND (TIME(c.occurrence) >= TIME(\''.$start.'\') OR TIME(c.occurrence) <= TIME(\''.$end.'\')) ';
+                    $this->_countsSql .= ' AND (TIME('.$this->_local('c.occurrence').') >= TIME(\''.$start.'\') OR TIME('.$this->_local('c.occurrence').') <= TIME(\''.$end.'\')) ';
                 }
                 else
                 {
-                    $this->_countsSql .= ' AND (TIME(c.occurrence) BETWEEN TIME(\''.$start.'\') AND TIME(\''.$end.'\')) ';
+                    $this->_countsSql .= ' AND (TIME('.$this->_local('c.occurrence').') BETWEEN TIME(\''.$start.'\') AND TIME(\''.$end.'\')) ';
                 }
             }
             else
             {
-                $this->_countsSql .= ' AND (TIME(c.occurrence) BETWEEN TIME(\''.$start.'\') AND TIME(\'23:59:59\')) ';
+                $this->_countsSql .= ' AND (TIME('.$this->_local('c.occurrence').') BETWEEN TIME(\''.$start.'\') AND TIME(\'23:59:59\')) ';
             }
         }
         else if (isset($params['eTimeH']))
         {
             $end = $params['eTimeH'].':'.$params['eTimeM'].':59';
-            $this->_countsSql .= ' AND (TIME(c.occurrence) <= TIME(\''.$end.'\')) ';
+            $this->_countsSql .= ' AND (TIME('.$this->_local('c.occurrence').') <= TIME(\''.$end.'\')) ';
         }
 
         // FIXME: This query is expensive...can we do all of this with a single query?
