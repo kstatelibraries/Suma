@@ -4,7 +4,21 @@ set -e
 # Paths
 WEB_DIR="/var/www/html"
 SUMA_DIR="/app/suma"
+SESSION_MGR_DIR="${SUMA_DIR}/session-manager"
 SUMA_LOG="/var/log/suma.log"
+HTPASSWD_FILE="/app/suma.htpasswd"
+
+# Build the htpasswd file used to protect the Session Manager.
+# The data collection client and /sumaserver must stay unauthenticated (tablets
+# cannot send Basic credentials), so this guards only /suma-session-manager.
+if [ -z "$SUMA_ADMIN_USER" ] || [ -z "$SUMA_ADMIN_PASS" ]; then
+  echo "SUMA_ADMIN_USER and SUMA_ADMIN_PASS must be set."
+  exit 1
+fi
+
+echo "Creating bcrypt htpasswd file at ${HTPASSWD_FILE}..."
+htpasswd -Bbc "${HTPASSWD_FILE}" "$SUMA_ADMIN_USER" "$SUMA_ADMIN_PASS"
+chown www-data:www-data "${HTPASSWD_FILE}"
 
 # Generate Apache config with environment variables
 cat > /etc/apache2/sites-available/000-default.conf <<EOF
@@ -14,6 +28,7 @@ cat > /etc/apache2/sites-available/000-default.conf <<EOF
     Alias /sumaserver ${SUMA_DIR}/service/web
     Alias /suma/client ${SUMA_DIR}/web
     Alias /suma/analysis ${SUMA_DIR}/analysis
+    Alias /suma-session-manager ${SESSION_MGR_DIR}
 
     <Location "/suma">
         Options -Indexes +FollowSymLinks
@@ -27,9 +42,22 @@ cat > /etc/apache2/sites-available/000-default.conf <<EOF
         RewriteCond %{REQUEST_FILENAME} -s [OR]
         RewriteCond %{REQUEST_FILENAME} -l [OR]
         RewriteCond %{REQUEST_FILENAME} -d
-        RewriteRule ^.*$ - [NC,L]
-        RewriteRule ^.*$ index.php [NC,L]
+        RewriteRule ^.*\$ - [NC,L]
+        RewriteRule ^.*\$ index.php [NC,L]
         Require all granted
+    </Location>
+
+    <Location "/suma-session-manager">
+        Options -Indexes
+        AllowOverride All
+        RewriteEngine On
+        RewriteRule ^.*\$ - [NC,L]
+        RewriteRule ^.*\$ index.php [NC,L]
+
+        AuthType Basic
+        AuthName "Suma Session Manager"
+        AuthUserFile ${HTPASSWD_FILE}
+        Require valid-user
     </Location>
 
     ErrorLog \${APACHE_LOG_DIR}/error.log
@@ -85,6 +113,7 @@ production:
             user: ${DB_USER}
             pword: ${DB_PASS}
             port: ${DB_PORT}
+        displayTimezone: ${SUMA_ANALYTICS_TIMEZONE:-UTC}
         log:
             path:
             name: ${SUMA_LOG}
@@ -105,6 +134,51 @@ development:
 EOC
 fi
 
+# Generate Session Manager config.php from env vars if not exists.
+# Both apps now share one host, so its URLs are plain paths rather than a
+# separately configured SERVICE_URL.
+SESSION_MGR_CONFIG_PATH="${SESSION_MGR_DIR}/config.php"
+if [ ! -f "$SESSION_MGR_CONFIG_PATH" ]; then
+  echo "Generating Suma Session Manager config.php..."
+  cat > "$SESSION_MGR_CONFIG_PATH" <<EOC
+<?php
+define ("DEBUG", false);
+define ("SUMASERVER_URL", "${SERVICE_URL}/sumaserver");
+define ("SUMA_REPORTS_URL", "${SERVICE_URL}/suma/analysis/reports");
+define ("MYSQL_HOST", "${DB_HOST}");
+define ("MYSQL_PORT", "${DB_PORT}");
+define ("MYSQL_DATABASE", "${DB_NAME}");
+define ("MYSQL_USER", "${DB_USER}");
+define ("MYSQL_PASSWORD", "${DB_PASS}");
+
+// Timestamps are stored in UTC; sessions are displayed in this timezone.
+define ("SUMA_DISPLAY_TIMEZONE", "${SUMA_ANALYTICS_TIMEZONE:-UTC}");
+
+\$ui_theme = "pepper-grinder";
+\$default_init   = "";
+\$entries_per_page = 100;
+\$prevent_datepicker_future = true;
+\$one_per_hour_inits = array();
+
+\$adjust_time_options = array (
+                                "-4 hrs"  => "subtime 04:00:00",
+                                "-3 hrs"  => "subtime 03:00:00",
+                                "-2 hrs"  => "subtime 02:00:00",
+                                "-60 min" => "subtime 01:00:00",
+                                "-30 min" => "subtime 00:30:00",
+                                "-15 min" => "subtime 00:15:00",
+                                "-10 min" => "subtime 00:10:00",
+                                "-5 min"  => "subtime 00:05:00",
+                                "+5 min"  => "addtime 00:05:00",
+                                "+10 min" => "addtime 00:10:00",
+                                "+15 min" => "addtime 00:15:00",
+                                "+30 min" => "addtime 00:30:00",
+                                "+60 min" => "addtime 01:00:00"
+                                );
+EOC
+  chown www-data:www-data "$SESSION_MGR_CONFIG_PATH"
+fi
+
 SUMA_CLIENT_CONFIG_PATH="${SUMA_DIR}/web/config/spaceassessConfig.js"
 if [ ! -f "$SUMA_CLIENT_CONFIG_PATH" ]; then
   echo "Generating Suma spaceassessConfig.js..."
@@ -112,13 +186,17 @@ if [ ! -f "$SUMA_CLIENT_CONFIG_PATH" ]; then
 fi
 
 
-# Install PHP dependencies if composer.json is present
-if [ -f "${SUMA_DIR}/composer.json" ]; then
-  echo "Installing PHP dependencies via Composer..."
-  cd "${SUMA_DIR}"
-  composer install --no-interaction --prefer-dist --optimize-autoloader
-  chown -R www-data:www-data ${SUMA_DIR}
-fi
+# NOTE: Composer is deliberately not run here.
+#
+# Every runtime dependency is vendored and committed (service/vendor for Zend
+# Framework, analysis/reports/lib/php/vendor for the reports libraries), and is
+# baked into the image by the COPY in the Dockerfile. The top-level composer.json
+# declares only require-dev linting tools (PHP_CodeSniffer, PHPCompatibility),
+# which nothing loads at runtime.
+#
+# Running `composer install` on startup made the container depend on outbound
+# network access every time it booted, and a DNS failure aborted the entrypoint
+# (set -e), leaving the container in a restart loop.
 
 # create suma.log file
 echo "Touching suma.log..."

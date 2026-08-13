@@ -1,5 +1,17 @@
 # Suma Session Manager
 
+> **Note for this deployment:** the Session Manager is no longer run as a
+> separate project. It is vendored into the Suma repository as a git subtree and
+> served from the same container at `/suma-session-manager`, protected by HTTP
+> Basic auth. `config.php` is generated from the top-level `.env` at container
+> startup — see the root [README](../README.md) for deployment and timezone
+> details. The standalone installation instructions below still apply if you run
+> it outside Docker.
+>
+> Session times are stored in UTC and converted for display using
+> `SUMA_DISPLAY_TIMEZONE`. This requires MySQL's named timezone tables
+> (`mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql`).
+
 **Suma Session Manager** is a tool for modifying data that has previously been submitted to **Suma: A Space Assessment Toolkit** (https://github.com/cazzerson/Suma). Suma is a space usage/statistics package; it natively does not allow users to delete or modify data once it has been submitted. This session manager allows the user to "delete" (actually hide from reporting) or to alter the timestamps on individual sessions. 
 
 **Note:** The good folks who wrote **Suma** very deliberately elected not to offer functions that delete or alter the data once submitted. Suma Session Manager does all sorts of things they didn't intend. I respect their original decision making and offer this project for other Suma users who want more flexibility. Remember: with great power comes great responsibility. 

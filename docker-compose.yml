@@ -4,11 +4,16 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    # Store and compare everything in UTC regardless of the host clock.
+    command: --default-time-zone=+00:00
     environment:
+      TZ: UTC
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
+    ports:
+      - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
 
@@ -27,21 +32,27 @@ services:
         mysql -h db -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} < /docker-entrypoint-initdb.d/schema.sql;
       else
         echo 'Schema already initialized, skipping.';
-      fi
+      fi;
+      echo 'Loading MySQL named timezone tables...';
+      mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -h db -u root -p${DB_ROOT_PASSWORD} mysql;
       "
     volumes:
       - ./service/config/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
 
+  # Serves the collection client, query server, analysis reports and the
+  # Session Manager (/suma-session-manager) from a single Apache vhost.
   suma:
     build: .
+    image: kstatelibraries/suma:latest
     ports:
       - "80:80"
     depends_on:
       - db
       - init-db
     environment:
+      TZ: UTC
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
