@@ -157,7 +157,8 @@ function HiddenFieldsForDateSearch() { //used by ShowEntries
 }
 
 function MoveSession($session_id, $transaction_id, $time_shift) {
-    list($action, $hms) = split(" ", $time_shift);
+    // explode() replaces split(), which was removed in PHP 8.
+    list($action, $hms) = explode(" ", $time_shift);
     try {
         $db = ConnectPDO();
         
@@ -223,6 +224,7 @@ function ShowMultiHours($init) {
         print '<p>No hours with multiple entries found</p>';
         }
         else {
+            $rows = "";
             while ($myrow = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 if (! ($headers)) 
                     $headers = array_keys($myrow);
@@ -240,7 +242,6 @@ function ShowMultiHours($init) {
             } // end while myrow
             $header = join('</th><th>',$headers);
             $header = '<tr><th>'.$header.'</th></tr>'.PHP_EOL;
-            if ($table_id != '') { $id = ' id="'.$table_id.'"'; }
             $rows = '<table id="multi-hours">'.$header.$rows.'</table>'.PHP_EOL;
             print($rows);
         }
@@ -266,7 +267,7 @@ $select = "<label for=\"initiative\">Initiative</label> <select name=\"initiativ
 return ($select);
 } //end if good response
 else {
-return '<div class="alert"><h3>Unable to connect to Suma Server</h3><p>Unable to connect to the Suma Server using the url defined as <strong>$sumaserver_url = '.$sumaserver_url.'</strong> in the <strong>config.php</strong> file. Please check this url.</p> <p>A useful test of correctness is this: if you can add <strong>/clientinit</strong> to the url, you should get a list of your suma initiatives, e.g. <a href="'.$url.'">'.$url.'</a>.' . PHP_EOL;
+return '<div class="alert"><h3>Unable to connect to Suma Server</h3><p>Unable to connect to the Suma Server using the url defined as <strong>SUMASERVER_URL = '.SUMASERVER_URL.'</strong> in the <strong>config.php</strong> file. Please check this url.</p> <p>A useful test of correctness is this: if you can add <strong>/clientinit</strong> to the url, you should get a list of your suma initiatives, e.g. <a href="'.$url.'">'.$url.'</a>.' . PHP_EOL;
 } //end if unable to reach sumaserver
 } //end function SelectInitiative
 
