@@ -1,10 +1,13 @@
-FROM php:8.1-apache
+FROM php:8.4-apache
 
 # Install dependencies.
-# apache2-utils supplies htpasswd, used to protect the Session Manager.
+# curl and default-mysql-client are runtime CLI tools (used by the entrypoint
+# health check and analysis scripts); apache2-utils supplies htpasswd, used to
+# protect the Session Manager. The curl PHP extension is required by the
+# analysis/nightly report libraries (guzzle).
 RUN apt-get update && apt-get install -y \
-    libzip-dev libonig-dev zip unzip curl default-mysql-client apache2-utils && \
-    docker-php-ext-install pdo_mysql mbstring zip && \
+    libzip-dev libonig-dev libcurl4-openssl-dev zip unzip curl default-mysql-client apache2-utils && \
+    docker-php-ext-install pdo_mysql mbstring zip curl && \
     a2enmod rewrite remoteip && \
     curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
     rm -rf /var/lib/apt/lists/*
