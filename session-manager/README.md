@@ -1,12 +1,11 @@
 # Suma Session Manager
 
-> **Note for this deployment:** the Session Manager is no longer run as a
-> separate project. It is vendored into the Suma repository as a git subtree and
-> served from the same container at `/suma-session-manager`, protected by HTTP
-> Basic auth. `config.php` is generated from the top-level `.env` at container
-> startup — see the root [README](../README.md) for deployment and timezone
-> details. The standalone installation instructions below still apply if you run
-> it outside Docker.
+> **Note for this deployment:** the Session Manager is part of the Suma
+> repository (not a separate project) and is served from the same container at
+> `/suma-session-manager`, protected by HTTP Basic auth. `config.php` is
+> generated from the top-level `.env` at container startup — see the root
+> [README](../README.md) for deployment and timezone details. The standalone
+> installation instructions below still apply if you run it outside Docker.
 >
 > Session times are stored in UTC and converted for display using
 > `SUMA_DISPLAY_TIMEZONE`. This requires MySQL's named timezone tables

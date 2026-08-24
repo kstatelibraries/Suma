@@ -50,13 +50,9 @@ All configuration files (`service/config/config.yaml`,
 `session-manager/config.php`, etc.) are generated from `.env` by
 `docker-entrypoint.sh` on first start, and are not overwritten if they exist.
 
-The Session Manager source is vendored from
-[kstatelibraries/Suma-Session-Manager](https://github.com/kstatelibraries/Suma-Session-Manager)
-as a git subtree under `session-manager/`. To pull upstream changes:
-
-```sh
-git subtree pull --prefix=session-manager session-manager-upstream master
-```
+The Session Manager (see [session-manager/](session-manager/README.md)) is part
+of this repository and this repository is its source of truth; the former
+standalone project ([kstatelibraries/Suma-Session-Manager](https://github.com/kstatelibraries/Suma-Session-Manager)) is frozen.
 
 ## Timezones
 
