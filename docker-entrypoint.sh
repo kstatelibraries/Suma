@@ -91,7 +91,7 @@ serverIO:
 analysisBaseUrl: ${SERVICE_URL}/suma/analysis/reports
 nightly:
     timezone: ${SUMA_ANALYTICS_TIMEZONE}
-    displayFormat: Y-m-d
+    displayFormat: ${SUMA_ANALYTICS_DISPLAY_FORMAT:-Y-m-d}
     recipients: ${SUMA_ANALYTICS_RECIPIENTS}
     errorRecipients: ${SUMA_ANALYTICS_ERROR_RECIPIENTS}
     emailFrom: "${SUMA_ANALYTICS_EMAIL_FROM}"
