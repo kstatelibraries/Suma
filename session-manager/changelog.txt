@@ -1,0 +1,2 @@
+version 0.2.2 - 1 June 2015
+* fixed session total Counts for rare circumstances when count.number is entered as a number greater than 1 (right now Suma doesn't do this natively, but if can occur if data has been imported manually or via the API)

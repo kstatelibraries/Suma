@@ -13,6 +13,7 @@ class Globals
     private static $_log;
     private static $_db;
     private static $_qsDbLimit;
+    private static $_displayTimezone;
 
     static function getDBConn()
     {
@@ -30,6 +31,12 @@ class Globals
                                        'port' => self::getConfig()->sumaserver->db->port
             ));
             self::$_db->query('SET NAMES utf8');
+
+            // All timestamps are stored and compared in UTC. MySQL TIMESTAMP columns
+            // are converted using the session time_zone, so pin it rather than
+            // inheriting SYSTEM (which follows whatever timezone the DB host runs in).
+            self::$_db->query("SET time_zone = '+00:00'");
+
             self::$_db->setFetchMode(Zend_Db::FETCH_ASSOC);
 
             return self::$_db;
@@ -64,6 +71,27 @@ class Globals
                 die;
             }
         }
+    }
+
+    /**
+     * Returns the timezone that stored (UTC) timestamps should be presented in.
+     *
+     * Suma stores every timestamp in UTC. Reports, however, are read by humans in
+     * a local timezone, so day and hour boundaries must be evaluated there. This
+     * is the single source of truth for that conversion; it is configured via
+     * SUMA_ANALYTICS_TIMEZONE and defaults to UTC when unset.
+     *
+     * @return string An IANA timezone identifier, e.g. 'America/Chicago'
+     */
+    static function getDisplayTimezone()
+    {
+        if (self::$_displayTimezone === null)
+        {
+            $tz = self::getConfig()->sumaserver->displayTimezone;
+            self::$_displayTimezone = empty($tz) ? 'UTC' : (string)$tz;
+        }
+
+        return self::$_displayTimezone;
     }
 
     static function getQsDbLimit()

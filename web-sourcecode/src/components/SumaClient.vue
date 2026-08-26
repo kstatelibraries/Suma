@@ -508,7 +508,23 @@ export default {
       //used for settings 'dateTime' function.
       var now = Date.now()
       var date = new Date(now);
-      return `${date.toDateString()}<br>${date.toLocaleTimeString()}`
+      return `${date.toDateString()}<br>${date.toLocaleTimeString()} ${this.tzAbbrev(date)}`
+    },
+    tzAbbrev: function(date) {
+      // Returns the browser/device local timezone abbreviation (e.g. 'CDT').
+      // The tablet client records counts on the device's own clock, so the
+      // displayed toolbar time and last-count time are labeled with the
+      // device timezone. Uses the default (browser) zone to match
+      // toLocaleTimeString().
+      try {
+        var parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(date);
+        for (var i = 0; i < parts.length; i++) {
+          if (parts[i].type === 'timeZoneName') {
+            return parts[i].value;
+          }
+        }
+      } catch (e) { /* fall through to empty */ }
+      return '';
     },
     locationCounts: function() {
       //returns a list of counts for current location
@@ -537,7 +553,7 @@ export default {
       var returnvalue = ''
       if (counts.length > 0){
         var timestamp = new Date(counts.pop().timestamp*1000);
-        returnvalue = timestamp.toLocaleTimeString()
+        returnvalue = timestamp.toLocaleTimeString() + ' ' + this.tzAbbrev(timestamp)
       }
       return returnvalue
     }

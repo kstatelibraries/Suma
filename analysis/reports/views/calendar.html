@@ -2,13 +2,13 @@
   <div class="row" data-ng-show="report.state.success">
     <div class="col-xs-5">
       <p class="text-muted">
-        <strong>Initiative: </strong> {{report.summaryParams.init.title}} <br>
+        <strong>Initiative: </strong> {{report.summaryParams.init.title}} <br/>
         <strong>Classify By: </strong> {{report.summaryParams.classifyCounts.title}}
-        <strong>Whole Session: </strong> {{report.summaryParams.wholeSession.title}} <br>
-        <strong>Dates: </strong> {{report.summaryParams.sdate}} - {{report.summaryParams.edate}}
-        <strong>Subset: </strong> {{report.summaryParams.stime || '00:00'}} - {{report.summaryParams.etime || '23:59'}} <br>
+        <strong>Whole Session: </strong> {{report.summaryParams.wholeSession.title}} <br/>
+        <strong>Dates: </strong> {{report.summaryParams.sdate}} - {{report.summaryParams.edate}}<span data-ng-if="report.data.tzAbbrev"> ({{report.data.tzAbbrev}})</span>
+        <strong>Subset: </strong> {{report.summaryParams.stime || '00:00'}} - {{report.summaryParams.etime || '23:59'}}<span data-ng-if="report.data.tzAbbrev"> ({{report.data.tzAbbrev}})</span> <br/>
         <strong>Days: </strong> <span data-ng-repeat="day in report.summaryParams.days">{{day | capitalize}}<span data-ng-show="!$last">,</span> </span>
-        <strong>Locations: </strong> {{report.summaryParams.location.title}} <br>
+        <strong>Locations: </strong> {{report.summaryParams.location.title}} <br/>
         <strong>EA: </strong> {{report.summaryParams.excludeActs | activityTitle:report.activities:'activity'}}
         <strong>RA: </strong> {{report.summaryParams.requireActs | activityTitle:report.activities:'activity'}}
         <strong>EAG: </strong> {{report.summaryParams.excludeActGrps | activityTitle:report.activities:'activityGroup'}}
@@ -39,6 +39,7 @@
         <p>Error Message: {{report.errorMessage}}</p>
       </div>
       <div data-suma-calendar-chart id="chart-1" data-data="report.data.data" data-stats="report.stats" data-ng-show="report.state.success"></div>
+      <p class="tz-note text-muted" data-ng-show="report.state.success && report.data.tzAbbrev">All chart times shown in {{report.data.tzAbbrev}}</p>
     </div>
   </div>
 
@@ -115,14 +116,14 @@
         </div>
 
         <div class="col-xs-3 supp-wrapper" data-ng-show="report.processMetadata">
-          <div class="loading"><img src="images/spinner.gif" alt="Spinner"></div>
+          <div class="loading" ><img src="images/spinner.gif" alt="Spinner"></div>
         </div>
 
         <div class="col-xs-3" data-ng-show="report.params.init && !report.processMetadata">
           <div class="form-group">
             <label class="suma-popover" data-title="Limit Days of the Week" data-content="Filter by weekday." data-suma-popover>Limit Days of the Week</label>
             <div class="controls">
-              <div class="row">
+              <div class="row" >
                 <div class="col-xs-3" data-ng-repeat="day in report.params.dayOptions">
                   <label class="checkbox-inline">
                     <input type="checkbox" value="{{day}}" data-check-list="report.params.days" data-suma-checklist>{{day | capitalize}}
@@ -159,7 +160,7 @@
           <div data-suma-active-filters data-acts="report.activities" data-locs="report.locations"></div>
 
           <div>
-            <input type="submit" id="submit" class="btn btn-success" value="{{report.state.loading ? 'Loading...' : 'Submit'}}">
+            <input type="submit" id="submit" class="btn btn-success" value="{{report.state.loading ? 'Loading...' : 'Submit'}}" />
           </div>
         </div>
       </fieldset>

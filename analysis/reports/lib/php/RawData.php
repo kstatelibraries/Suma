@@ -202,6 +202,12 @@ class RawData
                 $row['count'] = $count['number'];
                 $row['location'] = $this->locHash[$count['location']];
                 $row['activities'] = $count['activities'];
+                // Timezone abbreviation (e.g. 'CDT') for each displayed datetime.
+                // The query server returns naive local strings; these label
+                // which timezone they are in without touching CSV export values.
+                $row['sessionStartTz'] = ServerIO::tzAbbrev($sessStart);
+                $row['sessionEndTz'] = ServerIO::tzAbbrev($sessEnd);
+                $row['timeTz'] = ServerIO::tzAbbrev($count['time']);
 
                 array_push($this->countHash, $row);
             }

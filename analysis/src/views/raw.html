@@ -103,9 +103,9 @@
           </thead>
           <tbody>
             <tr data-ng-repeat="data in day.values">
-              <td>{{data.time}}</td>
-              <td>{{data.sessionStart}}</td>
-              <td>{{data.sessionEnd}}</td>
+              <td>{{data.time}}<span data-ng-if="data.timeTz"> {{data.timeTz}}</span></td>
+              <td>{{data.sessionStart}}<span data-ng-if="data.sessionStartTz"> {{data.sessionStartTz}}</span></td>
+              <td>{{data.sessionEnd}}<span data-ng-if="data.sessionEndTz"> {{data.sessionEndTz}}</span></td>
               <td>{{data.countId}}</td>
               <td>{{data.sessionId}}</td>
               <td>{{data.count}}</td>

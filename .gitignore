@@ -24,6 +24,7 @@ service/config/config.yaml
 service/web/config/config.yaml
 web/config/spaceassessConfig.js
 analysis/config/config.yaml
+session-manager/config.php
 
 #cron job
 analysis/reports/lib/php/nightly.sh

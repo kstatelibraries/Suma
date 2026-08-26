@@ -3,7 +3,7 @@
     <div class="col-xs-12">
       <div class="alert alert-info alert-block" data-ng-show="report.state.initial">
         <h4>Welcome!</h4>
-        Please select an initiative from the select menu below. You can also limit your search by date or time. <br><strong>Please note, this is a memory intensive report. If the page crashes during report generation, try a shorter date period.</strong>
+        Please select an initiative from the select menu below. You can also limit your search by date or time. <br/><strong>Please note, this is a memory intensive report. If the page crashes during report generation, try a shorter date period.</strong>
       </div>
     </div>
   </div>
@@ -58,14 +58,14 @@
             <span class="help-block">24-hour format, e.g. 08:00</span>
           </div>
           <div data-ng-show="report.params.init">
-            <input type="submit" id="submit" class="btn btn-success" value="{{report.state.loading ? 'Loading...' : 'Submit'}}">
+            <input type="submit" id="submit" class="btn btn-success" value="{{report.state.loading ? 'Loading...' : 'Submit'}}" />
           </div>
         </div>
       </fieldset>
     </form>
   </div>
 
-  <div class="row">
+  <div class="row" >
     <div class="col-xs-12" data-ng-show="report.state.loading">
       <div class="loading"><img src="images/spinner.gif" alt="Spinner"></div>
     </div>
@@ -103,9 +103,9 @@
           </thead>
           <tbody>
             <tr data-ng-repeat="data in day.values">
-              <td>{{data.time}}</td>
-              <td>{{data.sessionStart}}</td>
-              <td>{{data.sessionEnd}}</td>
+              <td>{{data.time}}<span data-ng-if="data.timeTz"> {{data.timeTz}}</span></td>
+              <td>{{data.sessionStart}}<span data-ng-if="data.sessionStartTz"> {{data.sessionStartTz}}</span></td>
+              <td>{{data.sessionEnd}}<span data-ng-if="data.sessionEndTz"> {{data.sessionEndTz}}</span></td>
               <td>{{data.countId}}</td>
               <td>{{data.sessionId}}</td>
               <td>{{data.count}}</td>

@@ -72969,6 +72969,13 @@ angular.module('sumaAnalysis')
 
       counts.barChartData = counts.actsLocsData.items[2];
 
+      // Timezone abbreviation for displayed datetimes (passed through from the
+      // server response when present; absent in tests/mocks so output is
+      // unchanged there).
+      if (response.tzAbbrev) {
+        counts.tzAbbrev = response.tzAbbrev;
+      }
+
       return counts;
     }
 
@@ -74228,6 +74235,13 @@ angular.module('sumaAnalysis')
 
       data.data = data.options[1];
 
+      // Timezone abbreviation for displayed datetimes (passed through from the
+      // server response when present; absent in tests/mocks so output is
+      // unchanged there).
+      if (response.tzAbbrev) {
+        data.tzAbbrev = response.tzAbbrev;
+      }
+
       return data;
     }
 
@@ -74672,6 +74686,13 @@ angular.module('sumaAnalysis')
       ];
 
       data.data = data.options[0];
+
+      // Timezone abbreviation for displayed datetimes (passed through from the
+      // server response when present; absent in tests/mocks so output is
+      // unchanged there).
+      if (response.tzAbbrev) {
+        data.tzAbbrev = response.tzAbbrev;
+      }
 
       return data;
     }

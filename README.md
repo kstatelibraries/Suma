@@ -23,6 +23,60 @@ As a safeguard, all JSON input from the client is logged. This will lead to larg
 * [Suma documentation site](https://suma-project.github.io/Suma)
 * [Suma license](LICENSE)
 
+## Deployment
+
+Suma and the [Session Manager](session-manager/README.md) run as a **single
+container**, served from one Apache virtual host:
+
+| Path | Application | Access |
+| --- | --- | --- |
+| `/suma/client` | Tablet data collection client | Public |
+| `/sumaserver` | Sync and query server | Public |
+| `/suma/analysis` | Analysis reports | Public |
+| `/suma-session-manager` | Session Manager | HTTP Basic auth |
+
+`/sumaserver` must stay unauthenticated because the tablet clients cannot send
+Basic credentials; only `/suma-session-manager` is password protected, using
+`SUMA_ADMIN_USER` / `SUMA_ADMIN_PASS`.
+
+To run it:
+
+```sh
+cp .env.example .env   # then edit .env
+docker compose up -d --build
+```
+
+All configuration files (`service/config/config.yaml`,
+`session-manager/config.php`, etc.) are generated from `.env` by
+`docker-entrypoint.sh` on first start, and are not overwritten if they exist.
+
+The Session Manager (see [session-manager/](session-manager/README.md)) is part
+of this repository and this repository is its source of truth; the former
+standalone project ([kstatelibraries/Suma-Session-Manager](https://github.com/kstatelibraries/Suma-Session-Manager)) is frozen.
+
+## Timezones
+
+**Every timestamp is stored in UTC.** Conversion to local time happens only when
+data is displayed or filtered:
+
+* The container, PHP, and the MySQL connection are all explicitly pinned to UTC,
+  so storage never depends on the host clock.
+* `SUMA_ANALYTICS_TIMEZONE` (an IANA name such as `America/Chicago`) is the
+  timezone that reports and the Session Manager present times in. It is also the
+  timezone that day and hour report boundaries are evaluated against, so a
+  "9am–5pm" report means 9am–5pm *local*, not UTC.
+* Conversion uses MySQL's named timezone tables, which the `init-db` service
+  loads on startup. Named zones are used rather than a fixed offset so daylight
+  saving transitions are handled correctly.
+
+Set `SUMA_ANALYTICS_TIMEZONE=UTC` to disable conversion entirely.
+
+Every displayed datetime is annotated with the timezone abbreviation it is
+shown in (e.g. `CDT`, `UTC`): the Session Manager and Analysis reports append
+the `SUMA_ANALYTICS_TIMEZONE` abbreviation to each timestamp, and the tablet
+client appends the device's local timezone abbreviation. The abbreviation is
+resolved per timestamp so daylight-saving transitions are labeled correctly.
+
 ## Suma Support
 
 For help installing Suma, creating data collection initiatives, etc., please start by posting to our [Google Group](https://groups.google.com/d/forum/suma-mobile-library-assessment-toolkit).

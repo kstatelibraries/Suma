@@ -43,6 +43,13 @@ angular.module('sumaAnalysis')
 
       data.data = data.options[0];
 
+      // Timezone abbreviation for displayed datetimes (passed through from the
+      // server response when present; absent in tests/mocks so output is
+      // unchanged there).
+      if (response.tzAbbrev) {
+        data.tzAbbrev = response.tzAbbrev;
+      }
+
       return data;
     }
 
