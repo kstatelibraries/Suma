@@ -101,10 +101,10 @@
           <tbody>
             <tr data-ng-repeat="data in day.values">
               <td>{{data.id}}</td>
-              <td>{{data.start}}</td>
-              <td>{{data.end}}</td>
-              <td>{{data.transStart}}</td>
-              <td>{{data.transEnd}}</td>
+              <td>{{data.start}}<span data-ng-if="data.startTz"> {{data.startTz}}</span></td>
+              <td>{{data.end}}<span data-ng-if="data.endTz"> {{data.endTz}}</span></td>
+              <td>{{data.transStart}}<span data-ng-if="data.transStartTz"> {{data.transStartTz}}</span></td>
+              <td>{{data.transEnd}}<span data-ng-if="data.transEndTz"> {{data.transEndTz}}</span></td>
               <td>{{data.total}}</td>
             </tr>
           </tbody>

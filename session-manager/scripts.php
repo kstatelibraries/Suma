@@ -29,6 +29,36 @@ function LocalExpr ($col) {
 
     return "CONVERT_TZ($col, 'UTC', '".$tz."')";
 }
+
+/**
+ * Returns the timezone abbreviation (e.g. 'CDT', 'CST', 'UTC') for the display
+ * timezone, resolved at the instant of the given naive local datetime.
+ *
+ * Session times are stored in UTC and converted to SUMA_DISPLAY_TIMEZONE for
+ * display by LocalExpr(). The converted values are naive local strings with no
+ * zone marker, so each displayed datetime is annotated with the abbreviation
+ * resolved via DateTime to keep daylight-saving transitions correct.
+ *
+ * @param string $datetimeStr Naive local datetime (e.g. '2026-08-26 09:30:00')
+ *                            or date (e.g. '2026-08-26'). Defaults to now.
+ * @return string             Timezone abbreviation, or 'UTC' on failure.
+ */
+function DisplayTzAbbrev ($datetimeStr = 'now') {
+    $tz = defined('SUMA_DISPLAY_TIMEZONE') ? SUMA_DISPLAY_TIMEZONE : 'UTC';
+
+    // Empty timestamps (e.g. a session with no transaction) have no zone to
+    // label; avoid treating them as "now".
+    if ($datetimeStr === NULL || $datetimeStr === '') {
+        return '';
+    }
+
+    try {
+        $dt = new DateTime($datetimeStr, new DateTimeZone($tz));
+        return $dt->format('T');
+    } catch (Exception $e) {
+        return 'UTC';
+    }
+}
 function HandleExceptionPDO($e) {
     print '<div class="alert">'.PHP_EOL;
     print '<p>An Error occured on <b>'.$e->getFile().' line '.$e->getLine().'</b></p>'.PHP_EOL;
@@ -68,7 +98,7 @@ function ShowEntries ($init, $offset=0, $entries_per_page=60, $and_where="", $ho
         
         //display forward and back controls by date or by sessions
         if (isset($_REQUEST['date_search'])) {
-            print '<h2>Sessions for '.date("l, F j, Y",strtotime($_REQUEST['date_search'])).'</h2>'.PHP_EOL;
+            print '<h2>Sessions for '.date("l, F j, Y",strtotime($_REQUEST['date_search'])).' ('.DisplayTzAbbrev($_REQUEST['date_search']).')</h2>'.PHP_EOL;
             list ($year, $month, $day) = preg_split ("/\-/", $_REQUEST['date_search']);
             if (isset($day) && strlen($day)==2) {
                 $date = $_REQUEST['date_search'];
@@ -76,12 +106,12 @@ function ShowEntries ($init, $offset=0, $entries_per_page=60, $and_where="", $ho
                 $previous_date= date("Y-m-d", strtotime($date . '- 1 day'));
             }
             else { $date = ''; } // don't set date if not a fully qualified date
-            
-            print '<form action="?" method="post"><input type="hidden" name="date_search" value="'.$previous_date.'"><input type="submit" value="&laquo; '.$previous_date.'" class="button"></form>'.PHP_EOL;
+
+            print '<form action="?" method="post"><input type="hidden" name="date_search" value="'.$previous_date.'"><input type="submit" value="&laquo; '.$previous_date.' ('.DisplayTzAbbrev($previous_date).')" class="button"></form>'.PHP_EOL;
 //            print '<a target="suma_analysis" href="'.SUMA_REPORTS_URL.'/#/hourly?id='.$init.'&sdate='.$date.'&edate='.$date.'&classifyCounts=count&wholeSession=no&zeroCounts=no&requireActs=&excludeActs=&requireActGrps=&excludeActGrps=&excludeLocs=&days=mo,tu,we,th,fr,sa,su" class="button">Examine Day in Suma Reports: '.$date.'</a>'.PHP_EOL;
             $suma_day_url = SUMA_REPORTS_URL.'/#/hourly?id='.$init.'&sdate='.$date.'&edate='.$date.'&classifyCounts=count&wholeSession=no&zeroCounts=no&requireActs=&excludeActs=&requireActGrps=&excludeActGrps=&excludeLocs=&days=mo,tu,we,th,fr,sa,su';
-            print '<form><input type="button" class="button" id="suma-day-link" value="Examine Day in Suma Reports: '.$date.'" data-url="'.$suma_day_url.'"></form>'.PHP_EOL;            
-            print '<form action="?" method="post"><input type="hidden" name="date_search" value="'.$next_date.'"><input type="submit" value="'.$next_date.' &raquo;" class="button"></form>'.PHP_EOL;
+            print '<form><input type="button" class="button" id="suma-day-link" value="Examine Day in Suma Reports: '.$date.' ('.DisplayTzAbbrev($date).')" data-url="'.$suma_day_url.'"></form>'.PHP_EOL;
+            print '<form action="?" method="post"><input type="hidden" name="date_search" value="'.$next_date.'"><input type="submit" value="'.$next_date.' ('.DisplayTzAbbrev($next_date).') &raquo;" class="button"></form>'.PHP_EOL;
         }
         else {
             $next_offset_older = $offset+$entries_per_page;
@@ -113,7 +143,16 @@ function ShowEntries ($init, $offset=0, $entries_per_page=60, $and_where="", $ho
             
             $rows .= ' <tr'.$class.'>'.PHP_EOL;
             foreach ($headers as $k) {
-                $rows .= '  <td class="'.$k.'">'.$myrow[$k].'</td>'.PHP_EOL;
+                $cell = $myrow[$k];
+                // Annotate displayed session timestamps with the display
+                // timezone abbreviation (e.g. '2026-08-26 09:30:00 CDT').
+                if (($k === 'start' || $k === 'end') && $cell !== NULL && $cell !== '') {
+                    $abbrev = DisplayTzAbbrev($cell);
+                    if ($abbrev !== '') {
+                        $cell .= ' ' . $abbrev;
+                    }
+                }
+                $rows .= '  <td class="'.$k.'">'.$cell.'</td>'.PHP_EOL;
             }
             if ($myrow['deleted'] == 0) {
                 $rows .= '<td><form action="?" method="post"><input type="hidden" name="action" value="delete_session"><input type="hidden" name="session_id" value="' .$myrow['id'] .'">'.HiddenFieldsForDateSearch().'<input type="submit" value="Delete" class="button"></form></td>'.PHP_EOL;
@@ -234,7 +273,14 @@ function ShowMultiHours($init) {
                         list ($date,$hour) = preg_split("/ /",$myrow[$k]);
                         if ($hour < 10) { $display_hour = '0'.$hour; }
                         else { $display_hour = $hour; }
-                        $myrow[$k] = '<a href="?date_search='.$date.'&hour_focus='.$date.' '.$display_hour.'">' .$date. ' '.$display_hour.'00</a>';
+                        // Resolve the timezone abbreviation at this local hour
+                        // (e.g. '2026-08-26 1400 CDT').
+                        $hourAbbrev = DisplayTzAbbrev($date.' '.$display_hour.':00:00');
+                        $hourLabel = $date. ' '.$display_hour.'00';
+                        if ($hourAbbrev !== '') {
+                            $hourLabel .= ' ' . $hourAbbrev;
+                        }
+                        $myrow[$k] = '<a href="?date_search='.$date.'&hour_focus='.$date.' '.$display_hour.'">' .$hourLabel. '</a>';
                     }
                     $rows .= '  <td class="'.$k.'">'.$myrow[$k].'</td>'.PHP_EOL;
                 }

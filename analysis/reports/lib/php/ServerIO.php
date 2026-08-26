@@ -51,6 +51,75 @@ class ServerIO
     private $_offset = NULL;
 
     /**
+     * Cached display timezone (IANA identifier, e.g. 'America/Chicago').
+     *
+     * The analysis tools do not convert timestamps themselves; the Suma query
+     * server does that via CONVERT_TZ using SUMA_ANALYTICS_TIMEZONE. This value
+     * mirrors that setting (see displayTimezone in config.yaml) so the analysis
+     * UI can label which timezone its displayed datetimes are in. Defaults to
+     * UTC when unset, matching the query server's own default.
+     *
+     * @var string|null
+     * @access  private
+     * @static
+     */
+    private static $_displayTimezone = NULL;
+
+    /**
+     * Returns the timezone that displayed datetimes are presented in.
+     *
+     * @access  public
+     * @static
+     * @return string  An IANA timezone identifier, e.g. 'America/Chicago'
+     */
+    public static function getDisplayTimezone()
+    {
+        if (self::$_displayTimezone === NULL)
+        {
+            $config = Spyc::YAMLLoad(realpath(dirname(__FILE__)) . '/../../../config/config.yaml');
+            $tz = isset($config['displayTimezone']) ? $config['displayTimezone'] : 'UTC';
+            self::$_displayTimezone = empty($tz) ? 'UTC' : (string)$tz;
+        }
+
+        return self::$_displayTimezone;
+    }
+
+    /**
+     * Returns the timezone abbreviation (e.g. 'CDT', 'CST', 'UTC') for a
+     * naive local datetime string interpreted in the display timezone.
+     *
+     * The Suma query server returns timestamps already converted to the display
+     * timezone but without any offset or zone marker. Interpreting such a
+     * string in the display timezone via DateTime lets PHP resolve the correct
+     * abbreviation for that instant, including daylight-saving transitions.
+     *
+     * @access  public
+     * @static
+     * @param  string $datetimeStr  Naive local datetime, e.g. '2026-08-26 09:30:00'.
+     *                              Defaults to the current moment.
+     * @return string               Timezone abbreviation, or '' on failure.
+     */
+    public static function tzAbbrev($datetimeStr = 'now')
+    {
+        // Empty/null timestamps (e.g. a session with no transaction) have no
+        // timezone to label. Avoid treating them as "now".
+        if ($datetimeStr === NULL || $datetimeStr === '')
+        {
+            return '';
+        }
+
+        try
+        {
+            $dt = new DateTime($datetimeStr, new DateTimeZone(self::getDisplayTimezone()));
+            return $dt->format('T');
+        }
+        catch (Exception $e)
+        {
+            return '';
+        }
+    }
+
+    /**
      * Constructor to set url configuration
      */
     function __construct() {

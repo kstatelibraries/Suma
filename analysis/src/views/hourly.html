@@ -5,8 +5,8 @@
         <strong>Initiative: </strong> {{report.summaryParams.init.title}} <br/>
         <strong>Classify By: </strong> {{report.summaryParams.classifyCounts.title}}
         <strong>Whole Session: </strong> {{report.summaryParams.wholeSession.title}} <br/>
-        <strong>Dates: </strong> {{report.summaryParams.sdate}} - {{report.summaryParams.edate}}<br/>
-        <strong>Subset: </strong> {{report.summaryParams.stime || '00:00'}} - {{report.summaryParams.etime || '23:59'}} <br/>
+        <strong>Dates: </strong> {{report.summaryParams.sdate}} - {{report.summaryParams.edate}}<span data-ng-if="report.data.tzAbbrev"> ({{report.data.tzAbbrev}})</span><br/>
+        <strong>Subset: </strong> {{report.summaryParams.stime || '00:00'}} - {{report.summaryParams.etime || '23:59'}}<span data-ng-if="report.data.tzAbbrev"> ({{report.data.tzAbbrev}})</span> <br/>
         <strong>Days: </strong> <span data-ng-repeat="day in report.summaryParams.days">{{day | capitalize}}<span data-ng-show="!$last">,</span> </span>
         <strong>EL: </strong> {{report.summaryParams.excludeLocs | locationTitle:report.locations}}
         <strong>EA: </strong> {{report.summaryParams.excludeActs | activityTitle:report.activities:'activity'}}
@@ -44,6 +44,7 @@
       </div>
       <div data-suma-hourly-line-chart id="chart-1" data-data="report.data.data" data-ng-show="report.state.success"></div>
       <div data-suma-hourly-calendar-chart id="chart-2" data-data="report.data.data" data-stats="report.stats" data-ng-show="report.state.success"></div>
+      <p class="tz-note text-muted" data-ng-show="report.state.success && report.data.tzAbbrev">All chart times shown in {{report.data.tzAbbrev}}</p>
     </div>
   </div>
 

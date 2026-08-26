@@ -89,6 +89,10 @@ showErrors: false
 serverIO:
     baseUrl: ${SERVICE_URL}/sumaserver/query
 analysisBaseUrl: ${SERVICE_URL}/suma/analysis/reports
+# IANA timezone the query server presents stored UTC timestamps in. Mirrors
+# the sumaserver displayTimezone so the analysis UI can label displayed
+# datetimes. Defaults to UTC.
+displayTimezone: ${SUMA_ANALYTICS_TIMEZONE:-UTC}
 nightly:
     timezone: ${SUMA_ANALYTICS_TIMEZONE}
     displayFormat: ${SUMA_ANALYTICS_DISPLAY_FORMAT:-Y-m-d}

@@ -1570,6 +1570,10 @@ class Data
 
         // Ensure sufficient results to return
         if ($this->checkData($data)) {
+            // Timezone abbreviation (e.g. 'CDT') for the display timezone. Chart
+            // reports present aggregated days/hours in this timezone; the UI uses
+            // this single label to annotate summary date/time lines and charts.
+            $data['tzAbbrev'] = ServerIO::tzAbbrev();
             return $data;
         } else {
             throw new Exception("No data found for that combination of filters. Please try a broader search.");

@@ -5,9 +5,9 @@
         <strong>Initiative: </strong> {{report.summaryParams.init.title}} <br/>
         <strong>Classify By: </strong> {{report.summaryParams.classifyCounts.title}}
         <strong>Whole Session: </strong> {{report.summaryParams.wholeSession.title}} <br/>
-        <strong>Dates: </strong> {{report.summaryParams.sdate}} - {{report.summaryParams.edate}}<br/>
+        <strong>Dates: </strong> {{report.summaryParams.sdate}} - {{report.summaryParams.edate}}<span data-ng-if="report.data.tzAbbrev"> ({{report.data.tzAbbrev}})</span><br/>
         <strong>No Counts Before: </strong> {{report.summaryParams.stime || '00:00'}}
-        <strong>No Counts After: </strong> {{report.summaryParams.etime || '23:59'}}<br/>
+        <strong>No Counts After: </strong> {{report.summaryParams.etime || '23:59'}}<span data-ng-if="report.data.tzAbbrev"> ({{report.data.tzAbbrev}})</span><br/>
         <strong>Start 24-Hour Day: </strong> {{report.summaryParams.startHour.title}}
         <strong>Zero Counts: </strong> {{report.summaryParams.zeroCounts.title}}<br/>
         <strong>Days: </strong> <span data-ng-repeat="day in report.summaryParams.days">{{day | capitalize}}<span data-ng-show="!$last">,</span> </span><br/>
@@ -44,6 +44,7 @@
         <p>Error Message: {{report.errorMessage}}</p>
       </div>
       <div data-suma-time-series-chart id="chart-1" data-data="report.data.timeSeriesData" data-ng-show="report.state.success"></div>
+      <p class="tz-note text-muted" data-ng-show="report.state.success && report.data.tzAbbrev">All chart times shown in {{report.data.tzAbbrev}}</p>
     </div>
   </div>
 

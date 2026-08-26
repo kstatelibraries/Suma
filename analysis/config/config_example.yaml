@@ -12,6 +12,12 @@ serverIO:
 # Change analysisBaseUrl to the URL for your analysis tools
 analysisBaseUrl: http://YOUR_SERVER/suma/analysis/reports
 
+# IANA timezone the Suma query server presents stored UTC timestamps in
+# (i.e. the sumaserver displayTimezone / SUMA_ANALYTICS_TIMEZONE). The analysis
+# UI uses this only to label which timezone displayed datetimes are in; it does
+# not perform any conversion itself. Defaults to UTC when unset.
+displayTimezone: UTC
+
 # Configuration for nightly report
 # Default Timezone. See: http://php.net/manual/en/timezones.php
 # Date display format. See: http://php.net/manual/en/function.date.php

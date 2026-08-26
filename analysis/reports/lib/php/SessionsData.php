@@ -146,7 +146,15 @@ class SessionsData
                     "transId" => $sess["transId"],
                     "transStart" => $sess["transStart"],
                     "transEnd" => $sess["transEnd"],
-                    "total" => 0
+                    "total" => 0,
+                    // Timezone abbreviation (e.g. 'CDT') for each displayed
+                    // datetime. The query server returns naive local strings;
+                    // these let the UI label which timezone they are in without
+                    // altering the values used by CSV exports.
+                    "startTz" => ServerIO::tzAbbrev($sess["start"]),
+                    "endTz" => ServerIO::tzAbbrev($sess["end"]),
+                    "transStartTz" => ServerIO::tzAbbrev($sess["transStart"]),
+                    "transEndTz" => ServerIO::tzAbbrev($sess["transEnd"])
                 );
 
                 foreach ($sess['locations'] as $loc)

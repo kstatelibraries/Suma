@@ -71,6 +71,12 @@ data is displayed or filtered:
 
 Set `SUMA_ANALYTICS_TIMEZONE=UTC` to disable conversion entirely.
 
+Every displayed datetime is annotated with the timezone abbreviation it is
+shown in (e.g. `CDT`, `UTC`): the Session Manager and Analysis reports append
+the `SUMA_ANALYTICS_TIMEZONE` abbreviation to each timestamp, and the tablet
+client appends the device's local timezone abbreviation. The abbreviation is
+resolved per timestamp so daylight-saving transitions are labeled correctly.
+
 ## Suma Support
 
 For help installing Suma, creating data collection initiatives, etc., please start by posting to our [Google Group](https://groups.google.com/d/forum/suma-mobile-library-assessment-toolkit).
